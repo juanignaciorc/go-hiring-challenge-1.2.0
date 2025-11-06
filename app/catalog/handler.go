@@ -7,6 +7,13 @@ import (
 	"github.com/mytheresa/go-hiring-challenge/models"
 )
 
+// ProductRepository defines the read operations needed by the catalog handler.
+// It is satisfied by models.ProductsRepository and any other implementation
+// providing the same behavior.
+type ProductRepository interface {
+	GetAllProducts() ([]models.Product, error)
+}
+
 type Response struct {
 	Products []Product `json:"products"`
 }
@@ -17,10 +24,10 @@ type Product struct {
 }
 
 type CatalogHandler struct {
-	repo *models.ProductsRepository
+	repo ProductRepository
 }
 
-func NewCatalogHandler(r *models.ProductsRepository) *CatalogHandler {
+func NewCatalogHandler(r ProductRepository) *CatalogHandler {
 	return &CatalogHandler{
 		repo: r,
 	}
