@@ -1,6 +1,7 @@
-package models
+package repositories
 
 import (
+	"github.com/mytheresa/go-hiring-challenge/models"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -16,14 +17,14 @@ func NewProductsRepository(db *gorm.DB) *ProductsRepository {
 }
 
 // GetProducts retrieves a filtered and paginated list of products along with the total count after filters.
-func (r *ProductsRepository) GetProducts(opts ListProductsOptions) ([]Product, int64, error) {
+func (r *ProductsRepository) GetProducts(opts models.ListProductsOptions) ([]models.Product, int64, error) {
 	var (
-		products []Product
+		products []models.Product
 		total    int64
 	)
 
 	// Start a base query joining category to allow filtering by its code
-	base := r.db.Model(&Product{}).Joins("Category")
+	base := r.db.Model(&models.Product{}).Joins("Category")
 
 	// Apply filters
 	if opts.CategoryCode != "" {

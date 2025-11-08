@@ -1,0 +1,29 @@
+package repositories
+
+import (
+	"github.com/mytheresa/go-hiring-challenge/models"
+	"gorm.io/gorm"
+)
+
+// CategoriesRepository provides operations for categories.
+type CategoriesRepository struct {
+	db *gorm.DB
+}
+
+func NewCategoriesRepository(db *gorm.DB) *CategoriesRepository {
+	return &CategoriesRepository{db: db}
+}
+
+// ListCategories returns all categories.
+func (r *CategoriesRepository) ListCategories() ([]models.Category, error) {
+	var categories []models.Category
+	if err := r.db.Order("id ASC").Find(&categories).Error; err != nil {
+		return nil, err
+	}
+	return categories, nil
+}
+
+// CreateCategory persists a new category.
+func (r *CategoriesRepository) CreateCategory(c models.Category) error {
+	return r.db.Create(c).Error
+}

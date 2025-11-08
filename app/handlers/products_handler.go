@@ -1,11 +1,11 @@
-package catalog
+package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/mytheresa/go-hiring-challenge/app/api"
 	"github.com/mytheresa/go-hiring-challenge/models"
 )
 
@@ -50,28 +50,6 @@ func NewCatalogHandler(r ProductRepository) *CatalogHandler {
 	}
 }
 
-// Defaults and limits for pagination.
-const (
-	defaultOffset = 0
-	defaultLimit  = 10
-	minLimit      = 1
-	maxLimit      = 100
-)
-
-type errorResponse struct {
-	Error string `json:"error"`
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
-}
-
-func badRequest(w http.ResponseWriter, msg string) {
-	writeJSON(w, http.StatusBadRequest, errorResponse{Error: msg})
-}
-
 // ListProducts processes GET /catalog requests by parsing and validating query parameters,
 // delegating to the repository, mapping domain models to API types, and writing the JSON response.
 func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
@@ -79,13 +57,13 @@ func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 
 	offset, ok, msg := parseOffset(q.Get("offset"))
 	if !ok {
-		badRequest(w, msg)
+		api.BadRequest(w, msg)
 		return
 	}
 
 	limit, ok, msg := parseLimit(q.Get("limit"))
 	if !ok {
-		badRequest(w, msg)
+		api.BadRequest(w, msg)
 		return
 	}
 
@@ -93,7 +71,7 @@ func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 
 	pricePtr, ok, msg := parsePriceLT(q.Get("price_lt"))
 	if !ok {
-		badRequest(w, msg)
+		api.BadRequest(w, msg)
 		return
 	}
 
@@ -106,7 +84,7 @@ func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 
 	res, total, err := h.repo.GetProducts(opts)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: err.Error()})
+		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -123,7 +101,7 @@ func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, Response{
+	api.OKResponse(w, Response{
 		Total:    total,
 		Products: products,
 	})
@@ -138,7 +116,7 @@ func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 func parseOffset(raw string) (int, bool, string) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return defaultOffset, true, ""
+		return api.DefaultOffset, true, ""
 	}
 	v, err := strconv.Atoi(raw)
 	if err != nil {
@@ -157,16 +135,16 @@ func parseOffset(raw string) (int, bool, string) {
 func parseLimit(raw string) (int, bool, string) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return defaultLimit, true, ""
+		return api.DefaultLimit, true, ""
 	}
 	v, err := strconv.Atoi(raw)
 	if err != nil {
 		return 0, false, errLimitMustBeInt
 	}
-	if v < minLimit {
-		v = minLimit
-	} else if v > maxLimit {
-		v = maxLimit
+	if v < api.MinLimit {
+		v = api.MinLimit
+	} else if v > api.MaxLimit {
+		v = api.MaxLimit
 	}
 	return v, true, ""
 }
