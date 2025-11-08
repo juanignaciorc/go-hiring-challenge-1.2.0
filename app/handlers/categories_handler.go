@@ -14,12 +14,6 @@ type CategoriesRepository interface {
 	CreateCategory(c models.Category) error
 }
 
-// CategoryItem is the API representation of a category.
-type CategoryItem struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
-}
-
 // CategoriesHandler serves requests related to categories.
 type CategoriesHandler struct {
 	repo CategoriesRepository
@@ -37,16 +31,16 @@ func (h *CategoriesHandler) ListCategories(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	out := make([]CategoryItem, len(cats))
+	out := make([]api.CategoryItem, len(cats))
 	for i, c := range cats {
-		out[i] = CategoryItem{Code: c.Code, Name: c.Name}
+		out[i] = api.CategoryItem{Code: c.Code, Name: c.Name}
 	}
 	api.WriteJSON(w, http.StatusOK, out)
 }
 
 // CreateCategory handles POST /categories and creates a new category.
 func (h *CategoriesHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
-	var in CategoryItem
+	var in api.CategoryItem
 	dec := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	if err := dec.Decode(&in); err != nil {
@@ -66,5 +60,5 @@ func (h *CategoriesHandler) CreateCategory(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Return the created entity (without internal ID)
-	api.WriteJSON(w, http.StatusCreated, CategoryItem{Code: m.Code, Name: m.Name})
+	api.WriteJSON(w, http.StatusCreated, api.CategoryItem{Code: m.Code, Name: m.Name})
 }

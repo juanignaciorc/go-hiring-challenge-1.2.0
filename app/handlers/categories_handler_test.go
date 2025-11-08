@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/mytheresa/go-hiring-challenge/app/api"
 	"github.com/mytheresa/go-hiring-challenge/models"
 	"github.com/stretchr/testify/assert"
 )
@@ -54,16 +55,16 @@ func TestCategoriesHandler_ListCategories_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
 
-	var payload []CategoryItem
+	var payload []api.CategoryItem
 	dec := json.NewDecoder(res.Body)
 	if err := dec.Decode(&payload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
 	assert.Len(t, payload, 3)
-	assert.Equal(t, CategoryItem{Code: "clothing", Name: "Clothing"}, payload[0])
-	assert.Equal(t, CategoryItem{Code: "shoes", Name: "Shoes"}, payload[1])
-	assert.Equal(t, CategoryItem{Code: "accessories", Name: "Accessories"}, payload[2])
+	assert.Equal(t, api.CategoryItem{Code: "clothing", Name: "Clothing"}, payload[0])
+	assert.Equal(t, api.CategoryItem{Code: "shoes", Name: "Shoes"}, payload[1])
+	assert.Equal(t, api.CategoryItem{Code: "accessories", Name: "Accessories"}, payload[2])
 }
 
 func TestCategoriesHandler_ListCategories_Empty(t *testing.T) {
@@ -80,7 +81,7 @@ func TestCategoriesHandler_ListCategories_Empty(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 
-	var payload []CategoryItem
+	var payload []api.CategoryItem
 	dec := json.NewDecoder(res.Body)
 	if err := dec.Decode(&payload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
@@ -128,12 +129,12 @@ func TestCategoriesHandler_CreateCategory_Success(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, res.StatusCode)
 	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
 
-	var payload CategoryItem
+	var payload api.CategoryItem
 	dec := json.NewDecoder(res.Body)
 	if err := dec.Decode(&payload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	assert.Equal(t, CategoryItem{Code: "new-cat", Name: "New Category"}, payload)
+	assert.Equal(t, api.CategoryItem{Code: "new-cat", Name: "New Category"}, payload)
 	// Ensure repo received the item
 	if assert.NotNil(t, repo.createdItem) {
 		assert.Equal(t, "new-cat", repo.createdItem.Code)
