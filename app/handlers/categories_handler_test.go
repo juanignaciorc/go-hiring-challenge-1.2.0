@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -21,14 +22,14 @@ type stubCategoriesRepo struct {
 	createdItem models.Category
 }
 
-func (s *stubCategoriesRepo) ListCategories() ([]models.Category, error) {
+func (s *stubCategoriesRepo) ListCategories(_ context.Context) ([]models.Category, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
 	return s.items, nil
 }
 
-func (s *stubCategoriesRepo) CreateCategory(c models.Category) error {
+func (s *stubCategoriesRepo) CreateCategory(_ context.Context, c models.Category) error {
 	s.createdItem = c
 	if s.createErr != nil {
 		return s.createErr

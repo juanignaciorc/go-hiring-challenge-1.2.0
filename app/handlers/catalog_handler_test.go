@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ type stubProductsRepo struct {
 	calls    int
 }
 
-func (s *stubProductsRepo) GetProducts(opts models.ListProductsOptions) ([]models.Product, int64, error) {
+func (s *stubProductsRepo) GetProducts(_ context.Context, opts models.ListProductsOptions) ([]models.Product, int64, error) {
 	s.lastOpts = opts
 	s.calls++
 	if s.err != nil {

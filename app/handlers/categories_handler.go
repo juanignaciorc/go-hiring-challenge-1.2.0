@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -10,8 +11,8 @@ import (
 
 // CategoriesRepository defines the operations needed by the categories handler.
 type CategoriesRepository interface {
-	ListCategories() ([]models.Category, error)
-	CreateCategory(c models.Category) error
+	ListCategories(ctx context.Context) ([]models.Category, error)
+	CreateCategory(ctx context.Context, c models.Category) error
 }
 
 // CategoriesHandler serves requests related to categories.
@@ -25,7 +26,7 @@ func NewCategoriesHandler(r CategoriesRepository) *CategoriesHandler {
 
 // ListCategories handles GET /categories and returns all categories.
 func (h *CategoriesHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
-	cats, err := h.repo.ListCategories()
+	cats, err := h.repo.ListCategories(r.Context())
 	if err != nil {
 		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -54,7 +55,7 @@ func (h *CategoriesHandler) CreateCategory(w http.ResponseWriter, r *http.Reques
 	}
 
 	m := models.Category{Code: in.Code, Name: in.Name}
-	if err := h.repo.CreateCategory(m); err != nil {
+	if err := h.repo.CreateCategory(r.Context(), m); err != nil {
 		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}

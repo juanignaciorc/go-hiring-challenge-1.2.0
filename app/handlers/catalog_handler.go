@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/mytheresa/go-hiring-challenge/app/api"
@@ -11,7 +12,7 @@ import (
 // It is satisfied by models.ProductsRepository and any other implementation
 // providing the same behavior.
 type ProductRepository interface {
-	GetProducts(opts models.ListProductsOptions) ([]models.Product, int64, error)
+	GetProducts(ctx context.Context, opts models.ListProductsOptions) ([]models.Product, int64, error)
 }
 
 type CatalogHandler struct {
@@ -56,7 +57,7 @@ func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 		PriceLessThan: pricePtr,
 	}
 
-	res, total, err := h.repo.GetProducts(opts)
+	res, total, err := h.repo.GetProducts(r.Context(), opts)
 	if err != nil {
 		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
