@@ -12,7 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/mytheresa/go-hiring-challenge/app/database"
 	"github.com/mytheresa/go-hiring-challenge/app/handlers"
-	"github.com/mytheresa/go-hiring-challenge/repositories"
+	"github.com/mytheresa/go-hiring-challenge/app/repositories"
 )
 
 func main() {
