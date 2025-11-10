@@ -35,6 +35,6 @@ func WriteJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func BadRequest(w http.ResponseWriter, msg string) {
-	WriteJSON(w, http.StatusBadRequest, errorResponse{Error: msg})
+func BadRequest(w http.ResponseWriter, message string) {
+	WriteJSON(w, http.StatusBadRequest, errorResponse{Error: message})
 }

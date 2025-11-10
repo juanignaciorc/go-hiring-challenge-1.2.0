@@ -72,4 +72,11 @@ COMMENT ON COLUMN categories.name IS 'Human-readable category name';
 COMMENT ON COLUMN categories.created_at IS 'Row creation timestamp';
 COMMENT ON COLUMN categories.updated_at IS 'Row update timestamp';
 
+-- Performance indexes related to categories/products relations
+-- Unique on categories.code already creates an index: uq_categories_code
+-- Index products.category_id to accelerate joins and filters by category
+CREATE INDEX IF NOT EXISTS idx_products_category_id ON products (category_id);
+-- Composite index for frequent filter combination: category and price less-than
+CREATE INDEX IF NOT EXISTS idx_products_category_id_price ON products (category_id, price);
+
 COMMIT;
