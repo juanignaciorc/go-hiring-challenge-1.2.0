@@ -27,5 +27,13 @@ func (r *CategoriesRepository) ListCategories(ctx context.Context) ([]models.Cat
 
 // CreateCategory persists a new category.
 func (r *CategoriesRepository) CreateCategory(ctx context.Context, c models.Category) error {
-	return r.db.WithContext(ctx).Create(c).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var maxID int
+		if err := tx.Model(&models.Category{}).Select("COALESCE(MAX(id), 0)").Scan(&maxID).Error; err != nil {
+			return err
+		}
+
+		c.ID = uint(maxID + 1)
+		return tx.Create(&c).Error
+	})
 }
