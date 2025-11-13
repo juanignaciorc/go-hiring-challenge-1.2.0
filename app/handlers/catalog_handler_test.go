@@ -12,6 +12,7 @@ import (
 	"github.com/mytheresa/go-hiring-challenge/models"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/gorm"
 )
 
 // stubProductsRepo is a test double implementing ProductRepository.
@@ -22,6 +23,10 @@ type stubProductsRepo struct {
 	err      error
 	lastOpts models.ListProductsOptions
 	calls    int
+
+	byCode      models.Product
+	byCodeErr   error
+	lastCodeArg string
 }
 
 func (s *stubProductsRepo) GetProducts(_ context.Context, opts models.ListProductsOptions) ([]models.Product, int64, error) {
@@ -31,6 +36,14 @@ func (s *stubProductsRepo) GetProducts(_ context.Context, opts models.ListProduc
 		return nil, 0, s.err
 	}
 	return s.items, s.total, nil
+}
+
+func (s *stubProductsRepo) GetProductByCode(_ context.Context, code string) (models.Product, error) {
+	s.lastCodeArg = code
+	if s.byCodeErr != nil {
+		return models.Product{}, s.byCodeErr
+	}
+	return s.byCode, nil
 }
 
 func TestCatalogHandler_ListProducts_Success(t *testing.T) {
@@ -223,4 +236,64 @@ func TestCatalogHandler_ListProducts_RepositoryError(t *testing.T) {
 	}
 	_ = json.NewDecoder(res.Body).Decode(&payload)
 	assert.Equal(t, assert.AnError.Error(), payload.Error)
+}
+
+func TestCatalogHandler_ProductDetails_Success(t *testing.T) {
+	repo := &stubProductsRepo{}
+	h := NewCatalogHandler(repo)
+
+	// product with two variants: one priced, one inherits from product
+	repo.byCode = models.Product{
+		Code:     "P1",
+		Price:    decimal.NewFromInt(100),
+		Category: models.Category{Code: "clothing", Name: "Clothing"},
+		Variants: []models.Variant{
+			{Name: "Red", SKU: "SKU1", Price: decimal.RequireFromString("19.99")},
+			{Name: "Blue", SKU: "SKU2"}, // zero price -> inherit 100
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/catalog/P1", nil)
+	req.SetPathValue("code", "P1")
+	rr := httptest.NewRecorder()
+
+	h.ProductDetails(rr, req)
+
+	res := rr.Result()
+	defer res.Body.Close()
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
+
+	var payload api.Product
+	_ = json.NewDecoder(res.Body).Decode(&payload)
+	assert.Equal(t, "P1", payload.Code)
+	assert.InDelta(t, 100.0, payload.Price, 0.0001)
+	assert.Equal(t, api.Category{Code: "clothing", Name: "Clothing"}, payload.Category)
+	if assert.Len(t, payload.Variants, 2) {
+		assert.Equal(t, api.Variant{Name: "Red", SKU: "SKU1", Price: 19.99}, payload.Variants[0])
+		assert.Equal(t, api.Variant{Name: "Blue", SKU: "SKU2", Price: 100}, payload.Variants[1])
+	}
+}
+
+func TestCatalogHandler_ProductDetails_NotFound(t *testing.T) {
+	repo := &stubProductsRepo{byCodeErr: gorm.ErrRecordNotFound}
+	h := NewCatalogHandler(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/catalog/NOPE", nil)
+	req.SetPathValue("code", "NOPE")
+	rr := httptest.NewRecorder()
+
+	h.ProductDetails(rr, req)
+
+	res := rr.Result()
+	defer res.Body.Close()
+	assert.Equal(t, http.StatusNotFound, res.StatusCode)
+	var body struct {
+		Error string `json:"error"`
+		Code  string `json:"code"`
+	}
+	_ = json.NewDecoder(res.Body).Decode(&body)
+	assert.Equal(t, "product not found", body.Error)
+	assert.Equal(t, "not_found", body.Code)
+	assert.Equal(t, "NOPE", repo.lastCodeArg)
 }

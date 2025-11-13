@@ -2,12 +2,15 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/mytheresa/go-hiring-challenge/app/api"
 	"github.com/mytheresa/go-hiring-challenge/app/errs"
 	"github.com/mytheresa/go-hiring-challenge/app/middleware"
 	"github.com/mytheresa/go-hiring-challenge/models"
+	"gorm.io/gorm"
 )
 
 // ProductRepository defines the read operations needed by the catalog handler.
@@ -15,6 +18,7 @@ import (
 // providing the same behavior.
 type ProductRepository interface {
 	GetProducts(ctx context.Context, opts models.ListProductsOptions) ([]models.Product, int64, error)
+	GetProductByCode(ctx context.Context, code string) (models.Product, error)
 }
 
 type CatalogHandler struct {
@@ -31,6 +35,52 @@ func NewCatalogHandler(r ProductRepository) *CatalogHandler {
 // delegating to the repository, mapping domain models to API types, and writing the JSON response.
 func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	middleware.Serve(w, r, h.listProducts)
+}
+
+// ProductDetails processes GET /catalog/{code} requests and returns a single product
+// including its category and variants. Variants without a specific price inherit
+// the product price.
+func (h *CatalogHandler) ProductDetails(w http.ResponseWriter, r *http.Request) {
+	middleware.Serve(w, r, h.productDetails)
+}
+
+func (h *CatalogHandler) productDetails(w http.ResponseWriter, r *http.Request) error {
+	code := strings.TrimSpace(r.PathValue("code"))
+	if code == "" {
+		return errs.Invalid("product code is required")
+	}
+
+	p, err := h.repo.GetProductByCode(r.Context(), code)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errs.NotFound("product not found")
+		}
+		return err
+	}
+
+	apiProd := api.Product{
+		Code:     p.Code,
+		Price:    p.Price.InexactFloat64(),
+		Category: api.Category{Code: p.Category.Code, Name: p.Category.Name},
+	}
+	if len(p.Variants) > 0 {
+		apiProd.Variants = make([]api.Variant, len(p.Variants))
+		base := p.Price.InexactFloat64()
+		for i, v := range p.Variants {
+			price := v.Price.InexactFloat64()
+			if v.Price.IsZero() {
+				price = base
+			}
+			apiProd.Variants[i] = api.Variant{
+				Name:  v.Name,
+				SKU:   v.SKU,
+				Price: price,
+			}
+		}
+	}
+
+	api.OKResponse(w, apiProd)
+	return nil
 }
 
 func (h *CatalogHandler) listProducts(w http.ResponseWriter, r *http.Request) error {

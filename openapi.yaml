@@ -28,7 +28,7 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
-          description: Maximum number of items to return. Defaults to 5.
+          description: Maximum number of items to return. Defaults to 10.
         - in: query
           name: category
           schema:
@@ -50,6 +50,58 @@ paths:
                 $ref: '#/components/schemas/CatalogResponse'
         '400':
           description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppError'
+  /catalog/{code}:
+    get:
+      summary: Get product details
+      description: Returns a single product by its code, including its category and variants. Variants without a specific price inherit the product price; the returned variant price is always numeric.
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+          description: Product code
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+              examples:
+                example:
+                  summary: Product with variants (one inherits the product price)
+                  value:
+                    code: PROD001
+                    price: 100
+                    category:
+                      code: clothing
+                      name: Clothing
+                    variants:
+                      - name: Red
+                        sku: SKU1
+                        price: 19.99
+                      - name: Blue
+                        sku: SKU2
+                        price: 100
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppError'
+        '404':
+          description: Product not found
           content:
             application/json:
               schema:
@@ -121,6 +173,18 @@ components:
         name:
           type: string
       required: [code, name]
+    Variant:
+      type: object
+      properties:
+        name:
+          type: string
+        sku:
+          type: string
+        price:
+          type: number
+          format: float
+      required: [name, sku, price]
+      description: A specific product option. If a variant has no specific price in the DB, the product price applies; responses always return a numeric price.
     Product:
       type: object
       properties:
@@ -131,6 +195,11 @@ components:
           format: float
         category:
           $ref: '#/components/schemas/Category'
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+          description: Optional list of variants. Empty or omitted when product has no variants.
       required: [code, price, category]
     CatalogResponse:
       type: object

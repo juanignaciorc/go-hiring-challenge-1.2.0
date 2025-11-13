@@ -18,6 +18,16 @@ func NewProductsRepository(db *gorm.DB) *ProductsRepository {
 	}
 }
 
+// GetProductByCode fetches a single product by its unique code with its Category and Variants preloaded.
+func (r *ProductsRepository) GetProductByCode(ctx context.Context, code string) (models.Product, error) {
+	var p models.Product
+	if err := r.db.WithContext(ctx).Preload("Category").Preload("Variants").
+		Where("code = ?", code).First(&p).Error; err != nil {
+		return models.Product{}, err
+	}
+	return p, nil
+}
+
 // Scopes for query reuse and safer composition
 func scopeJoinCategoriesIfFiltering(code string) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
