@@ -30,7 +30,8 @@ func (r *ProductsRepository) GetProducts(ctx context.Context, opts models.ListPr
 
 	// Apply filters
 	if opts.CategoryCode != "" {
-		base = base.Where("categories.code = ?", opts.CategoryCode)
+		// Use the JOIN alias that GORM creates for the Category association to ensure the filter applies correctly in real DBs.
+		base = base.Where("\"Category\".\"code\" = ?", opts.CategoryCode)
 	}
 	if opts.PriceLessThan != nil {
 		// Use decimal for exact comparison

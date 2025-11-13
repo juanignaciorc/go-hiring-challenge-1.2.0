@@ -47,12 +47,12 @@ func TestProductsRepository_GetProducts_FilterCategoryAndPrice_WithPagination_Su
 	}
 
 	// Count with filters (JOIN categories + WHERE on code and price)
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "products" LEFT JOIN "categories" "Category" ON "products"\."category_id" = "Category"\."id" WHERE categories\.code = \$1 AND products\.price < \$2`).
+	mock.ExpectQuery(`SELECT count\(\*\) FROM "products" LEFT JOIN "categories" "Category" ON "products"\."category_id" = "Category"\."id" WHERE "Category"\."code" = \$1 AND products\.price < \$2`).
 		WithArgs("shoes", sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
 	// Main select with same filters and pagination
-	mock.ExpectQuery(`SELECT .* FROM "products" LEFT JOIN "categories" "Category" ON "products"\."category_id" = "Category"\."id" WHERE categories\.code = \$1 AND products\.price < \$2 LIMIT \$3 OFFSET \$4`).
+	mock.ExpectQuery(`SELECT .* FROM "products" LEFT JOIN "categories" "Category" ON "products"\."category_id" = "Category"\."id" WHERE "Category"\."code" = \$1 AND products\.price < \$2 LIMIT \$3 OFFSET \$4`).
 		WithArgs("shoes", sqlmock.AnyArg(), 3, 2).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "price", "category_id", "Category__id", "Category__code", "Category__name"}).
 			AddRow(10, "PROD010", "12.00", 5, 5, "shoes", "Shoes").
