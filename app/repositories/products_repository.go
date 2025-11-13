@@ -18,6 +18,36 @@ func NewProductsRepository(db *gorm.DB) *ProductsRepository {
 	}
 }
 
+// Scopes for query reuse and safer composition
+func scopeJoinCategoriesIfFiltering(code string) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if code == "" {
+			return db
+		}
+		// Use explicit LEFT JOIN with quoted table/column names to be stable across drivers
+		return db.Joins("LEFT JOIN \"categories\" ON \"categories\".\"id\" = \"products\".\"category_id\"")
+	}
+}
+
+func scopeFilterCategory(code string) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if code == "" {
+			return db
+		}
+		return db.Where("categories.code = ?", code)
+	}
+}
+
+func scopeFilterPriceLT(pricePtr *float64) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if pricePtr == nil {
+			return db
+		}
+		price := decimal.NewFromFloat(*pricePtr)
+		return db.Where("products.price < ?", price)
+	}
+}
+
 // GetProducts retrieves a filtered and paginated list of products along with the total count after filters.
 func (r *ProductsRepository) GetProducts(ctx context.Context, opts models.ListProductsOptions) ([]models.Product, int64, error) {
 	var (
@@ -25,19 +55,13 @@ func (r *ProductsRepository) GetProducts(ctx context.Context, opts models.ListPr
 		total    int64
 	)
 
-	// Start a base query joining category to allow filtering by its code
-	base := r.db.WithContext(ctx).Model(&models.Product{}).Joins("Category")
-
-	// Apply filters
-	if opts.CategoryCode != "" {
-		// Use the JOIN alias that GORM creates for the Category association to ensure the filter applies correctly in real DBs.
-		base = base.Where("\"Category\".\"code\" = ?", opts.CategoryCode)
-	}
-	if opts.PriceLessThan != nil {
-		// Use decimal for exact comparison
-		price := decimal.NewFromFloat(*opts.PriceLessThan)
-		base = base.Where("products.price < ?", price)
-	}
+	// Build base query anchored on concrete table name for determinism across naming strategies
+	base := r.db.WithContext(ctx).
+		Model(&models.Product{}).
+		Table((&models.Product{}).TableName()). // ensure base table name is explicit
+		Scopes(scopeJoinCategoriesIfFiltering(opts.CategoryCode)).
+		Scopes(scopeFilterCategory(opts.CategoryCode)).
+		Scopes(scopeFilterPriceLT(opts.PriceLessThan))
 
 	// Count total after filters
 	if err := base.Count(&total).Error; err != nil {

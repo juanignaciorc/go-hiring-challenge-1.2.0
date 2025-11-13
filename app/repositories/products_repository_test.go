@@ -16,12 +16,12 @@ func TestProductsRepository_GetProducts_NoFilters_EmptyResult(t *testing.T) {
 
 	r := NewProductsRepository(db)
 
-	// Expect count query without filters (GORM still applies the JOIN alias)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "products" LEFT JOIN "categories" "Category" ON "products"."category_id" = "Category"."id"`)).
+	// Expect count query without filters (no joins needed)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "products"`)).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 
-	// Expect main select with join and no results
-	mock.ExpectQuery(`SELECT .* FROM "products" LEFT JOIN "categories" "Category" ON "products"."category_id" = "Category"."id"`).
+	// Expect main select without joins and no results (projection may vary by GORM)
+	mock.ExpectQuery(`SELECT .* FROM "products"`).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "price", "category_id"}))
 
 	ctx := context.Background()
@@ -46,19 +46,25 @@ func TestProductsRepository_GetProducts_FilterCategoryAndPrice_WithPagination_Su
 		Limit:         3,
 	}
 
-	// Count with filters (JOIN categories + WHERE on code and price)
-	mock.ExpectQuery(`SELECT count\(\*\) FROM "products" LEFT JOIN "categories" "Category" ON "products"\."category_id" = "Category"\."id" WHERE "Category"\."code" = \$1 AND products\.price < \$2`).
+	// Count with filters (LEFT JOIN categories + WHERE on table-qualified columns)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "products" LEFT JOIN "categories" ON "categories"."id" = "products"."category_id" WHERE categories.code = $1 AND products.price < $2`)).
 		WithArgs("shoes", sqlmock.AnyArg()).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
 	// Main select with same filters and pagination
-	mock.ExpectQuery(`SELECT .* FROM "products" LEFT JOIN "categories" "Category" ON "products"\."category_id" = "Category"\."id" WHERE "Category"\."code" = \$1 AND products\.price < \$2 LIMIT \$3 OFFSET \$4`).
+	mock.ExpectQuery(`SELECT .* FROM "products" LEFT JOIN "categories" ON "categories"\."id" = "products"\."category_id" WHERE categories\.code = \$1 AND products\.price < \$2 LIMIT \$3 OFFSET \$4`).
 		WithArgs("shoes", sqlmock.AnyArg(), 3, 2).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "price", "category_id", "Category__id", "Category__code", "Category__name"}).
-			AddRow(10, "PROD010", "12.00", 5, 5, "shoes", "Shoes").
-			AddRow(11, "PROD011", "19.99", 5, 5, "shoes", "Shoes"))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "price", "category_id"}).
+			AddRow(10, "PROD010", "12.00", 5).
+			AddRow(11, "PROD011", "19.99", 5))
 
-	// Preload Variants for found product IDs (GORM may preload this before Category)
+	// Preload Category for found product category IDs (may collapse to single equality by GORM)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "categories" WHERE "categories"."id" = $1`)).
+		WithArgs(5).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "code", "name"}).
+			AddRow(5, "shoes", "Shoes"))
+
+	// Preload Variants for found product IDs
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "product_variants" WHERE "product_variants"."product_id" IN ($1,$2)`)).
 		WithArgs(10, 11).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "product_id", "name", "sku", "price"}).
@@ -110,12 +116,12 @@ func TestProductsRepository_GetProducts_SelectError(t *testing.T) {
 
 	r := NewProductsRepository(db)
 
-	// Count succeeds (GORM includes the join alias even without filters)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "products" LEFT JOIN "categories" "Category" ON "products"."category_id" = "Category"."id"`)).
+	// Count succeeds (no joins needed)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "products"`)).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 
 	// Main select fails
-	mock.ExpectQuery(`SELECT .* FROM "products" LEFT JOIN "categories" "Category" ON "products"\."category_id" = "Category"\."id"`).
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "products"`)).
 		WillReturnError(assert.AnError)
 
 	ctx := context.Background()
