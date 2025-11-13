@@ -31,4 +31,30 @@ This repository contains a Go application for managing products and their prices
   - `make run`: Will start the application.
   - `make docker-down`: Will stop the docker containers.
 
+Note: The application listens on port 8484 by default. You can change it via the `HTTP_PORT` environment variable.
+
 Follow up for the assignemnt here: [ASSIGNMENT.md](ASSIGNMENT.md)
+
+
+## API Documentation
+
+This project includes OpenAPI/Swagger documentation for all endpoints.
+
+- Raw OpenAPI spec: `GET /openapi.yaml`
+- Interactive Swagger UI: `GET /docs`
+
+How to use:
+1. Start the app (e.g. `make run`). By default the server binds to `http://localhost:${HTTP_PORT}`.
+2. Open your browser at `http://localhost:${HTTP_PORT}/docs` to explore and test the API.
+3. The OpenAPI document is also available at `http://localhost:${HTTP_PORT}/openapi.yaml`.
+
+Documented endpoints:
+- `GET /catalog` — query params: `offset`, `limit`, `category`, `price_lt`. Returns `total` and `products`.
+- `GET /categories` — returns a list of categories.
+- `POST /categories` — creates a category. Request/response body: `{ "code": string, "name": string }`.
+
+Error schema:
+Errors follow a consistent shape:
+```json
+{ "error": "message", "code": "invalid" }
+```
