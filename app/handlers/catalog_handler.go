@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/mytheresa/go-hiring-challenge/app/api"
+	"github.com/mytheresa/go-hiring-challenge/app/errs"
+	"github.com/mytheresa/go-hiring-challenge/app/middleware"
 	"github.com/mytheresa/go-hiring-challenge/models"
 )
 
@@ -28,26 +30,27 @@ func NewCatalogHandler(r ProductRepository) *CatalogHandler {
 // ListProducts processes GET /catalog requests by parsing and validating query parameters,
 // delegating to the repository, mapping domain models to API types, and writing the JSON response.
 func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
+	middleware.Serve(w, r, h.listProducts)
+}
+
+func (h *CatalogHandler) listProducts(w http.ResponseWriter, r *http.Request) error {
 	q := r.URL.Query()
 
 	offset, ok, msg := api.ParseOffset(q.Get("offset"))
 	if !ok {
-		api.BadRequest(w, msg)
-		return
+		return errs.Invalid(msg)
 	}
 
 	limit, ok, msg := api.ParseLimit(q.Get("limit"))
 	if !ok {
-		api.BadRequest(w, msg)
-		return
+		return errs.Invalid(msg)
 	}
 
 	category := api.Normalize(q.Get("category"))
 
 	pricePtr, ok, msg := api.ParsePriceLT(q.Get("price_lt"))
 	if !ok {
-		api.BadRequest(w, msg)
-		return
+		return errs.Invalid(msg)
 	}
 
 	opts := models.ListProductsOptions{
@@ -59,8 +62,8 @@ func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 
 	res, total, err := h.repo.GetProducts(r.Context(), opts)
 	if err != nil {
-		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
-		return
+		// propagate raw error so tests receive the original message
+		return err
 	}
 
 	// Map response
@@ -80,4 +83,5 @@ func (h *CatalogHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
 		Total:    total,
 		Products: products,
 	})
+	return nil
 }

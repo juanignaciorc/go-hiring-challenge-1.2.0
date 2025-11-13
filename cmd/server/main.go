@@ -64,6 +64,6 @@ func main() {
 
 	<-ctx.Done()
 	log.Println("Shutting down server...")
-	srv.Shutdown(ctx)
+	_ = srv.Shutdown(ctx)
 	stop()
 }

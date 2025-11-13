@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	"github.com/mytheresa/go-hiring-challenge/app/api"
+	"github.com/mytheresa/go-hiring-challenge/app/errs"
+	"github.com/mytheresa/go-hiring-challenge/app/middleware"
 	"github.com/mytheresa/go-hiring-challenge/models"
 )
 
@@ -26,10 +28,13 @@ func NewCategoriesHandler(r CategoriesRepository) *CategoriesHandler {
 
 // ListCategories handles GET /categories and returns all categories.
 func (h *CategoriesHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
+	middleware.Serve(w, r, h.listCategories)
+}
+
+func (h *CategoriesHandler) listCategories(w http.ResponseWriter, r *http.Request) error {
 	cats, err := h.repo.ListCategories(r.Context())
 	if err != nil {
-		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
-		return
+		return err
 	}
 
 	out := make([]api.CategoryItem, len(cats))
@@ -37,29 +42,32 @@ func (h *CategoriesHandler) ListCategories(w http.ResponseWriter, r *http.Reques
 		out[i] = api.CategoryItem{Code: c.Code, Name: c.Name}
 	}
 	api.WriteJSON(w, http.StatusOK, out)
+	return nil
 }
 
 // CreateCategory handles POST /categories and creates a new category.
 func (h *CategoriesHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
+	middleware.Serve(w, r, h.createCategory)
+}
+
+func (h *CategoriesHandler) createCategory(w http.ResponseWriter, r *http.Request) error {
 	var in api.CategoryItem
 	dec := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 	if err := dec.Decode(&in); err != nil {
-		api.BadRequest(w, "invalid JSON body")
-		return
+		return errs.Invalid("invalid JSON body")
 	}
 	// Basic validation
 	if in.Code == "" || in.Name == "" {
-		api.BadRequest(w, "code and name are required")
-		return
+		return errs.Invalid("code and name are required")
 	}
 
 	m := models.Category{Code: in.Code, Name: in.Name}
 	if err := h.repo.CreateCategory(r.Context(), m); err != nil {
-		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
-		return
+		return err
 	}
 
 	// Return the created entity (without internal ID)
 	api.WriteJSON(w, http.StatusCreated, api.CategoryItem{Code: m.Code, Name: m.Name})
+	return nil
 }
